@@ -1,45 +1,42 @@
 import streamlit as st
 import pandas as pd
+import requests
+import os
 
-# Judul di HP
 st.set_page_config(page_title="Monitoring Logistik", layout="wide")
-st.title("🚢 My Logistics Monitor")
+st.title("🚢 Logistik Dashboard (Auto-Sync)")
 
-# Fungsi ambil data dari GitHub kamu (Ganti USERNAME & REPO nanti)
-USER = "username_github_kamu"
+# Setting GitHub (Ganti dengan Username & Repo kamu)
+USER = "username_kamu"
 REPO = "nama_repo_kamu"
+TOKEN = "isi_token_kalau_repo_private" # Opsional
 
-def get_url(filename):
-    return f"https://raw.githubusercontent.com/{USER}/{REPO}/main/{filename}"
+def get_file_list():
+    url = f"https://api.github.com/repos/{USER}/{REPO}/contents/"
+    response = requests.get(url)
+    return response.json()
 
 try:
-    # 1. Baca Data
-    df_vessel = pd.read_csv(get_url("vessel.csv"))
-    df_cargo = pd.read_csv(get_url("cargo.csv"))
-    df_tms = pd.read_csv(get_url("tms.csv"))
-
-    # 2. Proses "Jahit" Data (Merge)
-    # Gabung Cargo dengan Vessel berdasarkan nama Kapal & Voyage
-    merged = pd.merge(df_cargo, df_vessel, on=['Vessel', 'Voyage'], how='left')
-    # Gabung hasil tadi dengan Data TMS berdasarkan nomor DN
-    final_df = pd.merge(merged, df_tms, on='DN_Number', how='left')
-
-    # 3. Tampilan di HP
-    st.subheader("Ringkasan Pengiriman")
+    files = get_file_list()
     
-    # Fitur Search/Filter
-    search = st.text_input("Cari Nomor DN atau Kapal:")
-    if search:
-        final_df = final_df[final_df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
+    # Cari file berdasarkan keyword nama
+    file_delivery = [f['download_url'] for f in files if "DELIVERY" in f['name'].upper()][0]
+    file_master = [f['download_url'] for f in files if "MASTER DATA" in f['name'].upper()][0]
+    file_vessel = [f['download_url'] for f in files if "VESSEL" in f['name'].upper()][0]
 
-    # Tabel Utama
-    st.dataframe(final_df, use_container_width=True)
+    # Baca Excel langsung (Tanpa CSV)
+    df_cargo = pd.read_excel(file_delivery)
+    df_tms = pd.read_excel(file_master)
+    df_vessel = pd.read_excel(file_vessel)
 
-    # Indikator Sederhana
-    total_dn = len(final_df)
-    pending = final_df['Status_TMS'].isna().sum()
-    st.metric("Total DN", total_dn)
-    st.metric("Belum di-Arrange (Pending TMS)", pending)
+    # --- BAGIAN JOIN DATA ---
+    # Sesuaikan nama kolom di bawah ini dengan isi Excel kamu!
+    # Misal: df_cargo punya kolom 'DN', df_tms punya 'DN Number'
+    merged = pd.merge(df_cargo, df_vessel, on='Vessel', how='left')
+    final_df = pd.merge(merged, df_tms, on='DN Number', how='left')
+
+    st.success("Data Berhasil Terupdate!")
+    st.dataframe(final_df)
 
 except Exception as e:
-    st.warning("Menunggu data diupload ke GitHub... Pastikan nama file vessel.csv, cargo.csv, dan tms.csv sudah benar.")
+    st.error(f"Gagal baca data. Pastikan file Excel sudah di-upload ke GitHub. Error: {e}")
