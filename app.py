@@ -6,8 +6,8 @@ st.set_page_config(page_title="Monitoring Logistik", layout="wide")
 st.title("🚢 Logistik Dashboard (Mobile View)")
 
 # --- CONFIGURATION (GANTI INI) ---
-USER = "username_github_kamu"
-REPO = "nama_repo_kamu"
+USER = "andhikarakha88"
+REPO = "dikadikadik"
 
 def get_file_info():
     url = f"https://api.github.com/repos/{USER}/{REPO}/contents/"
