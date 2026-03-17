@@ -3,9 +3,8 @@ import pandas as pd
 import requests
 
 st.set_page_config(page_title="Monitoring Logistik", layout="wide")
-st.title("🚢 Logistik Dashboard (Mobile View)")
+st.title("🚢 Logistik Dashboard (Final Version)")
 
-# --- CONFIGURATION ---
 USER = "andhikarakha88"
 REPO = "dikadikadik"
 
@@ -16,55 +15,48 @@ def get_file_info():
 
 try:
     files = get_file_info()
-    
-    # Cari download link berdasarkan keyword nama file
     url_delivery = [f['download_url'] for f in files if "DELIVERY" in f['name'].upper()][0]
-    url_master = [f['download_url'] for f in files if "MASTER DATA" in f['name'].upper()][0]
+    url_master = [f['download_url'] for f in files if "MASTER" in f['name'].upper()][0]
     url_vessel = [f['download_url'] for f in files if "VESSEL" in f['name'].upper()][0]
 
-    # --- BACA EXCEL ---
-    # Delivery -> Kolom DN namanya 'Delivery'
-    df_cargo = pd.read_excel(url_delivery, sheet_name='Shift 1', header=1) 
+    # 1. BACA DELIVERY (Skip baris pertama karena kosong/judul di file lo)
+    df_cargo = pd.read_excel(url_delivery, sheet_name='Shift 1', skiprows=1)
     
-    # Master Data TMS -> Kolom DN namanya 'Original Delivery'
-    df_tms = pd.read_excel(url_master, sheet_name='Data')
+    # 2. BACA MASTER DATA (Skip baris pertama karena judul ganda)
+    df_tms = pd.read_excel(url_master, sheet_name='Data', skiprows=1)
     
-    # Vessel Schedule
+    # 3. BACA VESSEL
     df_vessel = pd.read_excel(url_vessel, sheet_name='MasterVesselData')
 
-    # Bersihkan spasi di nama kolom biar gak error
-    df_cargo.columns = df_cargo.columns.str.strip()
-    df_tms.columns = df_tms.columns.str.strip()
-    df_vessel.columns = df_vessel.columns.str.strip()
+    # BERSINIHIN SPASI DI NAMA KOLOM
+    for df in [df_cargo, df_tms, df_vessel]:
+        df.columns = df.columns.astype(str).str.strip()
 
-    # --- PROSES GABUNG DATA (JOIN) ---
+    # --- PROSES MERGE (Gue paksa namanya biar nyambung) ---
     
-    # 1. Gabung Cargo & Vessel (Berdasarkan kolom 'Vessel')
-    # Di file delivery lo kolomnya 'Vessel', di Master Vessel juga 'VESSEL_NAME'
-    # Kita coba samakan dulu nama kolomnya
+    # Samakan kolom Vessel
     df_vessel = df_vessel.rename(columns={'VESSEL_NAME': 'Vessel'})
     merged = pd.merge(df_cargo, df_vessel, on='Vessel', how='left')
     
-    # 2. Gabung dengan Status TMS
-    # Di Cargo namanya 'Delivery', di TMS namanya 'No. DN' atau 'Original Delivery'
-    # Berdasarkan file yang lo kirim, di TMS kolomnya 'No. DN' atau 'Original Delivery'
-    # Kita samakan namanya jadi 'Delivery' biar bisa digabung
+    # Samakan kolom DN: 'Delivery' di Cargo vs 'Original Delivery' di TMS
     df_tms = df_tms.rename(columns={'Original Delivery': 'Delivery'})
     
-    # Gabungkan
+    # Gabung semua
     final_df = pd.merge(merged, df_tms, on='Delivery', how='left')
 
     # --- TAMPILAN ---
-    st.subheader("Monitoring Delivery")
+    st.success("✅ Data Berhasil Gabung!")
     
-    # Kolom yang mau ditampilkan (biar gak kepanjangan di HP)
-    # Pilih kolom yang paling penting saja
-    cols_to_show = ['Delivery', 'Vessel', 'Voyage', 'ETA', 'ETD', 'NO. FO', 'Customer (sebelum garis miring)']
-    # Filter hanya kolom yang beneran ada
-    actual_cols = [c for c in cols_to_show if c in final_df.columns]
+    # Pilih kolom yang mau lo liat di HP biar gak pusing
+    kolom_pilihan = ['Delivery', 'Vessel', 'Voyage', 'ETA', 'ETD', 'NO. FO', 'Customer (sebelum garis miring)']
+    kolom_tersedia = [c for c in kolom_pilihan if c in final_df.columns]
     
-    st.dataframe(final_df[actual_cols], use_container_width=True)
+    search = st.text_input("Cari DN atau Kapal:")
+    if search:
+        final_df = final_df[final_df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
+
+    st.dataframe(final_df[kolom_tersedia], use_container_width=True)
 
 except Exception as e:
-    st.error(f"Error: {e}")
-    st.info("Cek lagi: Pastikan nama kolom 'Delivery' di file Cargo dan 'Original Delivery' di file Master sudah benar.")
+    st.error(f"Waduh, ada masalah dikit: {e}")
+    st.info("Coba cek apakah nama file di Github udah bener ada kata DELIVERY, MASTER, dan VESSEL.")
