@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trucking Monitor - Indah Kiat</title>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 15px; font-size: 13px; }
+        .box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        input, select, button { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { background: #1a73e8; color: white; border: none; font-weight: bold; cursor: pointer; grid-column: span 2; margin-top: 10px; }
+        .table-container { overflow-x: auto; background: white; border-radius: 12px; }
+        table { width: 100%; border-collapse: collapse; min-width: 1200px; }
+        th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
+        th { background: #1a73e8; color: white; position: sticky; top: 0; }
+        .btn-edit { background: #fb8c00; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+        .status-badge { padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 11px; background: #e8f0fe; color: #1a73e8; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2 id="formTitle" style="margin-top:0; color:#1a73e8;">🚛 Trucking Planner Monitoring</h2>
+    <input type="hidden" id="editKey">
+    <div class="grid">
+        <input type="text" id="dn" placeholder="DN Number">
+        <select id="status">
+            <option value="Plan">Plan</option>
+            <option value="On Progress">On Progress</option>
+            <option value="Selesai">Selesai</option>
+        </select>
+        <input type="text" id="party" placeholder="Party (20ft/40ft/40HC)">
+        <input type="text" id="shipping" placeholder="Shipping Line">
+        <input type="text" id="do_bc" placeholder="No DO / BC">
+        <input type="text" id="emkl" placeholder="EMKL">
+        <input type="number" id="qty_emkl" placeholder="Jumlah Diambil EMKL">
+        <select id="shift">
+            <option value="Shift 1">Shift 1</option>
+            <option value="Shift 2">Shift 2</option>
+            <option value="Shift 3">Shift 3</option>
+        </select>
+        <input type="text" id="terminal" placeholder="Terminal">
+        <input type="text" id="depo" placeholder="Depo">
+        <input type="text" id="open_cy" placeholder="Open CY">
+        <input type="text" id="closing_cy" placeholder="Closing CY">
+        <input type="text" id="remarks" placeholder="Remarks / Catatan" style="grid-column: span 2;">
+        <button onclick="saveData()" id="btnSave">SIMPAN DATA</button>
+    </div>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Aksi</th>
+                <th>DN</th>
+                <th>Status</th>
+                <th>Party</th>
+                <th>S.Line</th>
+                <th>DO/BC</th>
+                <th>EMKL (Qty)</th>
+                <th>Shift</th>
+                <th>Term/Depo</th>
+                <th>Open/Close CY</th>
+                <th>Remarks</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<script>
+    // Konfigurasi dari gambar kamu (image_1ebd3f.png)
+    const firebaseConfig = {
+        apiKey: "AIzaSyCA7ooMH4y6T_UOArTAY0WneVJ3SX56zao",
+        authDomain: "dikadikadik-90ae9.firebaseapp.com",
+        databaseURL: "https://dikadikadik-90ae9-default-rtdb.firebaseio.com",
+        projectId: "dikadikadik-90ae9",
+        storageBucket: "dikadikadik-90ae9.firebasestorage.app",
+        messagingSenderId: "713113091902",
+        appId: "1:713113091902:web:4ad7d01925b130a2b1766f"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function saveData() {
+        const key = document.getElementById('editKey').value;
+        const data = {
+            dn: document.getElementById('dn').value,
+            status: document.getElementById('status').value,
+            party: document.getElementById('party').value,
+            shipping: document.getElementById('shipping').value,
+            do_bc: document.getElementById('do_bc').value,
+            emkl: document.getElementById('emkl').value,
+            qty_emkl: document.getElementById('qty_emkl').value,
+            shift: document.getElementById('shift').value,
+            terminal: document.getElementById('terminal').value,
+            depo: document.getElementById('depo').value,
+            open_cy: document.getElementById('open_cy').value,
+            closing_cy: document.getElementById('closing_cy').value,
+            remarks: document.getElementById('remarks').value,
+            time: Date.now()
+        };
+
+        if(key) {
+            db.ref('monitoring/' + key).update(data);
+            document.getElementById('editKey').value = "";
+            document.getElementById('btnSave').innerText = "SIMPAN DATA";
+        } else {
+            db.ref('monitoring/').push(data);
+        }
+        alert("Data Berhasil Diupdate!");
+        clearForm();
+    }
+
+    function editData(key, d) {
+        document.getElementById('editKey').value = key;
+        document.getElementById('dn').value = d.dn || "";
+        document.getElementById('status').value = d.status || "Plan";
+        document.getElementById('party').value = d.party || "";
+        document.getElementById('shipping').value = d.shipping || "";
+        document.getElementById('do_bc').value = d.do_bc || "";
+        document.getElementById('emkl').value = d.emkl || "";
+        document.getElementById('qty_emkl').value = d.qty_emkl || "";
+        document.getElementById('shift').value = d.shift || "Shift 1";
+        document.getElementById('terminal').value = d.terminal || "";
+        document.getElementById('depo').value = d.depo || "";
+        document.getElementById('open_cy').value = d.open_cy || "";
+        document.getElementById('closing_cy').value = d.closing_cy || "";
+        document.getElementById('remarks').value = d.remarks || "";
+        document.getElementById('btnSave').innerText = "UPDATE DATA SEKARANG";
+        window.scrollTo(0,0);
+    }
+
+    function clearForm() {
+        document.querySelectorAll('input').forEach(i => i.value = "");
+    }
+
+    db.ref('monitoring/').on('value', (snap) => {
+        const data = snap.val();
+        let rows = "";
+        for (let key in data) {
+            const d = data[key];
+            rows += `<tr>
+                <td><button class="btn-edit" onclick='editData("${key}", ${JSON.stringify(d)})'>Edit</button></td>
+                <td><b>${d.dn}</b></td>
+                <td><span class="status-badge">${d.status}</span></td>
+                <td>${d.party}</td>
+                <td>${d.shipping}</td>
+                <td>${d.do_bc}</td>
+                <td>${d.emkl} (${d.qty_emkl})</td>
+                <td>${d.shift}</td>
+                <td>${d.terminal}/${d.depo}</td>
+                <td>${d.open_cy} <br> ${d.closing_cy}</td>
+                <td>${d.remarks}</td>
+            </tr>`;
+        }
+        document.getElementById('tableBody').innerHTML = rows;
+    });
+</script>
+</body>
+</html>
